@@ -21,7 +21,8 @@ import { z as zod } from 'zod';
 import { paths } from '@/paths';
 import { authClient } from '@/lib/auth/client';
 import { useUser } from '@/hooks/use-user';
-
+import { textAlign } from '@mui/system';
+import { users } from './user';
 const schema = zod.object({
   email: zod.string().min(1, { message: 'Email is required' }).email(),
   password: zod.string().min(1, { message: 'Password is required' }),
@@ -47,38 +48,83 @@ export function SignInForm(): React.JSX.Element {
     formState: { errors },
   } = useForm<Values>({ defaultValues, resolver: zodResolver(schema) });
 
+  // const onSubmit = React.useCallback(
+  //   async (values: Values): Promise<void> => {
+  //     setIsPending(true);
+
+  //     const { error } = await authClient.signInWithPassword(values);
+
+  //     if (error) {
+  //       setError('root', { type: 'server', message: error });
+  //       setIsPending(false);
+  //       return;
+  //     }
+
+  //     // Refresh the auth state
+  //     await checkSession?.();
+
+  //     // UserProvider, for this case, will not refresh the router
+  //     // After refresh, GuestGuard will handle the redirect
+  //     router.refresh();
+  //   },
+  //   [checkSession, router, setError]
+  // );
+
   const onSubmit = React.useCallback(
     async (values: Values): Promise<void> => {
       setIsPending(true);
-
-      const { error } = await authClient.signInWithPassword(values);
-
-      if (error) {
-        setError('root', { type: 'server', message: error });
+  
+      // ✅ Check if user exists in users.ts data
+      const isValidUser = Object.values(users).some(userGroup =>
+        userGroup.some(user => user.email === values.email && user.password === values.password)
+      );
+  
+      console.log('isValidUser', isValidUser);
+  
+      if (!isValidUser) {
+        setError('root', { type: 'server', message: 'Invalid email or password' });
         setIsPending(false);
         return;
       }
-
-      // Refresh the auth state
+  
+      console.log("Login successful!");
+  
+      // ✅ If no backend authentication is needed, store session manually
+      localStorage.setItem("isAuthenticated", "true");
+  
+      // 🔴 If authClient is not needed, remove this block
+      try {
+        console.log("Sending credentials to authClient:", values);
+        const { error } = await authClient.signInWithPassword(values);
+  
+        if (error) {
+          console.error("Auth error:", error);
+          setError('root', { type: 'server', message: error.message || 'Invalid credentials' });
+          setIsPending(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Auth request failed:", err);
+        setError('root', { type: 'server', message: 'Authentication service error' });
+        setIsPending(false);
+        return;
+      }
+  
+      console.log("Checking session...");
       await checkSession?.();
-
-      // UserProvider, for this case, will not refresh the router
-      // After refresh, GuestGuard will handle the redirect
-      router.refresh();
+      console.log("Session check complete!");
+  
+      // ✅ Navigate after successful login
+      router.push("/dashboard");
     },
     [checkSession, router, setError]
-  );
-
+  );  
+  
+  
   return (
     <Stack spacing={4}>
       <Stack spacing={1}>
-        <Typography variant="h4">Sign in</Typography>
-        <Typography color="text.secondary" variant="body2">
-          Don&apos;t have an account?{' '}
-          <Link component={RouterLink} href={paths.auth.signUp} underline="hover" variant="subtitle2">
-            Sign up
-          </Link>
-        </Typography>
+        <Typography variant="h4" sx={{textAlign:`center`}}>Login Page</Typography>
       </Stack>
       <form onSubmit={handleSubmit(onSubmit)}>
         <Stack spacing={2}>
@@ -127,27 +173,12 @@ export function SignInForm(): React.JSX.Element {
               </FormControl>
             )}
           />
-          <div>
-            <Link component={RouterLink} href={paths.auth.resetPassword} variant="subtitle2">
-              Forgot password?
-            </Link>
-          </div>
           {errors.root ? <Alert color="error">{errors.root.message}</Alert> : null}
           <Button disabled={isPending} type="submit" variant="contained">
-            Sign in
+            Login
           </Button>
         </Stack>
-      </form>
-      <Alert color="warning">
-        Use{' '}
-        <Typography component="span" sx={{ fontWeight: 700 }} variant="inherit">
-          sofia@devias.io
-        </Typography>{' '}
-        with password{' '}
-        <Typography component="span" sx={{ fontWeight: 700 }} variant="inherit">
-          Secret1
-        </Typography>
-      </Alert>
+      </form> 
     </Stack>
   );
 }

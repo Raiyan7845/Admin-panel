@@ -1,6 +1,7 @@
 'use client';
 
 import type { User } from '@/types/user';
+import {users} from '../../components/auth/user'
 
 function generateToken(): string {
   const arr = new Uint8Array(12);
@@ -51,21 +52,26 @@ class AuthClient {
     return { error: 'Social authentication not implemented' };
   }
 
+
   async signInWithPassword(params: SignInWithPasswordParams): Promise<{ error?: string }> {
     const { email, password } = params;
-
-    // Make API request
-
-    // We do not handle the API, so we'll check if the credentials match with the hardcoded ones.
-    if (email !== 'sofia@devias.io' || password !== 'Secret1') {
+  
+    // 🔍 Check if the user exists in `users.ts`
+    const isValidUser = Object.values(users).some(userGroup =>
+      userGroup.some(user => user.email === email && user.password === password)
+    );
+  
+    if (!isValidUser) {
       return { error: 'Invalid credentials' };
     }
-
+  
+    // ✅ Generate token for successful login
     const token = generateToken();
     localStorage.setItem('custom-auth-token', token);
-
+  
     return {};
   }
+  
 
   async resetPassword(_: ResetPasswordParams): Promise<{ error?: string }> {
     return { error: 'Password reset not implemented' };
